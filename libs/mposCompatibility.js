@@ -16,7 +16,8 @@ module.exports = function(logger, poolConfig){
 
     var logIdentify = 'MySQL';
     var logComponent = coin;
-
+    var AccountDb = "";
+    var WorkerDb = "";
 
 
     this.handleAuth = function(workerName, password, authCallback){
@@ -25,9 +26,14 @@ module.exports = function(logger, poolConfig){
             authCallback(true);
             return;
         }
-
+        if(mposConfig.AccountDb){
+            AccountDb = mposConfig.AccountDb + '.';
+        }
+        if(mposConfig.WorkerDb){
+            WorkerDb = mposConfig.WorkerDb + '.';
+        }
         connection.query(
-            'SELECT password FROM pool_worker WHERE username = LOWER(?)',
+            'SELECT password FROM '+WorkerDb+'pool_worker WHERE username = LOWER(?)',
             [workerName.toLowerCase()],
             function(err, result){
                 if (err){
@@ -39,7 +45,7 @@ module.exports = function(logger, poolConfig){
                     if(mposConfig.autoCreateWorker){
                         var account = workerName.split('.')[0];
                         connection.query(
-                            'SELECT id,username FROM accounts WHERE username = LOWER(?)',
+                            'SELECT id,username FROM '+AccountDb+'accounts WHERE username = LOWER(?)',
                             [account.toLowerCase()],
                             function(err, result){
                                 if (err){
@@ -50,7 +56,7 @@ module.exports = function(logger, poolConfig){
                                     authCallback(false);
                                 }else{
                                     connection.query(
-                                        "INSERT INTO `pool_worker` (`account_id`, `username`, `password`) VALUES (?, ?, ?);",
+                                        "INSERT INTO `'+WorkerDb+'pool_worker` (`account_id`, `username`, `password`) VALUES (?, ?, ?);",
                                         [result[0].id,workerName.toLowerCase(),password],
                                         function(err, result){
                                             if (err){
@@ -104,13 +110,13 @@ module.exports = function(logger, poolConfig){
     this.handleDifficultyUpdate = function(workerName, diff){
 
         connection.query(
-            'UPDATE `pool_worker` SET `difficulty` = ' + diff + ' WHERE `username` = ' + connection.escape(workerName),
+            'UPDATE `'+WorkerDb+'pool_worker` SET `difficulty` = ' + diff + ' WHERE `username` = ' + connection.escape(workerName),
             function(err, result){
                 if (err)
                     logger.error(logIdentify, logComponent, 'Error when updating worker diff: ' +
                         JSON.stringify(err));
                 else if (result.affectedRows === 0){
-                    connection.query('INSERT INTO `pool_worker` SET ?', {username: workerName, difficulty: diff});
+                    connection.query('INSERT INTO `'+WorkerDb+'pool_worker` SET ?', {username: workerName, difficulty: diff});
                 }
                 else
                     console.log('Updated difficulty successfully', result);
